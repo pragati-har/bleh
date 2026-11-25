@@ -1,0 +1,6 @@
+frontend:
+1. npm create vite@latest project-name -- --template react
+2. cd project-name
+3. npm install
+4. npm install tailwindcss @tailwindcss/vite
+5. npm run dev
