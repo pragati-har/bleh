@@ -1,15 +1,11 @@
 
-import React, { createContext, useContext, useState, useEffect } from "react";
+import { createContext, useContext, useState, useEffect } from "react";
 
-// ==========================================
-// 1. CONFIGURATION - CUSTOMISE THIS SECTION
-// ==========================================
-
+// 1. CONFIGURATION
 const CONFIG = {
-  title: "Cafe Menu Management",
+  title: "Cafe Management System",
   itemName: "Cafe Item",
   storageKey: "cafeItems",
-
   fields: [
     { name: "name", label: "Item Name", type: "text" },
     { name: "category", label: "Category", type: "text" },
@@ -18,53 +14,43 @@ const CONFIG = {
   ]
 };
 
-// ==========================================
-// 2. CREATE CONTEXT
-// ==========================================
+const createEmptyForm = () =>
+  Object.fromEntries(CONFIG.fields.map(f => [f.name, ""]));
 
 const ItemContext = createContext();
 
-// ==========================================
-// 3. CONTEXT PROVIDER
-// ==========================================
-
+// 2. CONTEXT PROVIDER
 function ItemProvider({ children }) {
-
   const [items, setItems] = useState(() => {
-    return JSON.parse(localStorage.getItem(CONFIG.storageKey)) || [];
+    try {
+      return JSON.parse(localStorage.getItem(CONFIG.storageKey)) || [];
+    } catch {
+      return [];
+    }
   });
 
-  // Save data whenever items change
   useEffect(() => {
     localStorage.setItem(CONFIG.storageKey, JSON.stringify(items));
   }, [items]);
 
-  // ADD ITEM
-  const addItem = (item) => {
-    setItems(prev => [
-      ...prev,
-      { ...item, id: Date.now(), active: true }
-    ]);
-  };
+  const addItem = item =>
+    setItems(prev => [...prev, {
+      ...item,
+      id: Date.now(),
+      active: true
+    }]);
 
-  // DELETE ITEM
-  const deleteItem = (id) => {
+  const deleteItem = id =>
     setItems(prev => prev.filter(item => item.id !== id));
-  };
 
-  // UPDATE ITEM
-  const updateItem = (id, updatedItem) => {
+  const updateItem = (id, data) =>
     setItems(prev =>
       prev.map(item =>
-        item.id === id
-          ? { ...item, ...updatedItem }
-          : item
+        item.id === id ? { ...item, ...data } : item
       )
     );
-  };
 
-  // TOGGLE CHECKBOX
-  const toggleItem = (id) => {
+  const toggleItem = id =>
     setItems(prev =>
       prev.map(item =>
         item.id === id
@@ -72,7 +58,6 @@ function ItemProvider({ children }) {
           : item
       )
     );
-  };
 
   return (
     <ItemContext.Provider
@@ -83,44 +68,27 @@ function ItemProvider({ children }) {
   );
 }
 
-// ==========================================
-// 4. FORM COMPONENT
-// ==========================================
-
+// 3. FORM COMPONENT
 function ItemForm({ editingItem, setEditingItem }) {
-
   const { addItem, updateItem } = useContext(ItemContext);
+  const [form, setForm] = useState(createEmptyForm);
 
-  const emptyForm = Object.fromEntries(
-    CONFIG.fields.map(field => [field.name, ""])
-  );
-
-  const [form, setForm] = useState(emptyForm);
-
-  // Load existing data when editing
   useEffect(() => {
     if (editingItem) {
       setForm({ ...editingItem });
     } else {
-      setForm(emptyForm);
+      setForm(createEmptyForm());
     }
   }, [editingItem]);
 
-  // Handle input changes
-  const handleChange = (e) => {
+  const handleChange = e => {
     const { name, value } = e.target;
-
-    setForm(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    setForm(prev => ({ ...prev, [name]: value }));
   };
 
-  // Handle form submission
-  const handleSubmit = (e) => {
+  const handleSubmit = e => {
     e.preventDefault();
 
-    // Basic validation
     for (let field of CONFIG.fields) {
       if (!String(form[field.name] ?? "").trim()) {
         alert("Please fill all fields!");
@@ -128,70 +96,77 @@ function ItemForm({ editingItem, setEditingItem }) {
       }
     }
 
-    const finalData = { ...form };
+    const data = { ...form };
 
     CONFIG.fields.forEach(field => {
       if (field.type === "number") {
-        finalData[field.name] = Number(finalData[field.name]);
+        data[field.name] = Number(data[field.name]);
       }
     });
 
     if (editingItem) {
-      updateItem(editingItem.id, finalData);
+      updateItem(editingItem.id, data);
       setEditingItem(null);
     } else {
-      addItem(finalData);
+      addItem(data);
     }
 
-    setForm(emptyForm);
+    setForm(createEmptyForm());
   };
 
   return (
-    <form onSubmit={handleSubmit} className="form">
+    <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+      <h2 className="text-xl font-bold text-gray-800 mb-5">
+        {editingItem ? "Edit" : "Add New"} {CONFIG.itemName}
+      </h2>
 
-      <h2>{editingItem ? "Edit" : "Add"} {CONFIG.itemName}</h2>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {CONFIG.fields.map(field => (
+          <div key={field.name}>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              {field.label}
+            </label>
 
-      {CONFIG.fields.map(field => (
-        <input
-          key={field.name}
-          type={field.type}
-          name={field.name}
-          placeholder={field.label}
-          value={form[field.name] ?? ""}
-          onChange={handleChange}
-          required
-        />
-      ))}
+            <input
+              type={field.type}
+              name={field.name}
+              placeholder={`Enter ${field.label.toLowerCase()}`}
+              value={form[field.name] ?? ""}
+              onChange={handleChange}
+              required
+              className="w-full border border-gray-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-blue-400"
+            />
+          </div>
+        ))}
 
-      <button type="submit">
-        {editingItem ? "Update" : "Add"} Item
-      </button>
+        <div className="flex gap-3">
+          <button
+            type="submit"
+            className="bg-blue-600 text-white px-5 py-2.5 rounded-lg hover:bg-blue-700"
+          >
+            {editingItem ? "Update Item" : "Add Item"}
+          </button>
 
-      {editingItem && (
-        <button
-          type="button"
-          onClick={() => setEditingItem(null)}
-        >
-          Cancel
-        </button>
-      )}
-
-    </form>
+          {editingItem && (
+            <button
+              type="button"
+              onClick={() => setEditingItem(null)}
+              className="bg-gray-500 text-white px-5 py-2.5 rounded-lg"
+            >
+              Cancel
+            </button>
+          )}
+        </div>
+      </form>
+    </div>
   );
 }
 
-// ==========================================
-// 5. LIST COMPONENT
-// ==========================================
-
+// 4. LIST COMPONENT
 function ItemList({ setEditingItem }) {
-
-  const { items, deleteItem, toggleItem } =
-    useContext(ItemContext);
-
+  const { items, deleteItem, toggleItem } = useContext(ItemContext);
   const [search, setSearch] = useState("");
 
-  // Search functionality
   const filteredItems = items.filter(item =>
     CONFIG.fields.some(field =>
       String(item[field.name] ?? "")
@@ -201,100 +176,134 @@ function ItemList({ setEditingItem }) {
   );
 
   return (
-    <div className="list">
+    <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 mt-6">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-5">
+        <h2 className="text-xl font-bold text-gray-800">
+          {CONFIG.itemName} List
+          <span className="text-blue-600 ml-2">({items.length})</span>
+        </h2>
 
-      <h2>{CONFIG.itemName} List ({items.length})</h2>
-
-      <input
-        type="text"
-        placeholder="Search..."
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-      />
+        <input
+          type="text"
+          placeholder="Search records..."
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          className="border border-gray-300 rounded-lg p-2.5 focus:outline-none focus:ring-2 focus:ring-blue-400"
+        />
+      </div>
 
       {filteredItems.length === 0 ? (
-        <p>No records found!</p>
+        <p className="text-center text-gray-500 py-8">
+          No records found!
+        </p>
       ) : (
-
         filteredItems.map(item => (
-
-          <div className="card" key={item.id}>
-
-            <div>
+          <div
+            key={item.id}
+            className="border border-gray-200 rounded-lg p-4 mb-3 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 hover:shadow-sm"
+          >
+            <div className="space-y-1">
               {CONFIG.fields.map(field => (
-                <p key={field.name}>
-                  <strong>{field.label}:</strong>{" "}
-                  {item[field.name]}
+                <p key={field.name} className="text-gray-700 text-sm">
+                  <strong>{field.label}:</strong> {item[field.name]}
                 </p>
               ))}
 
-              <label>
+              <span className={`inline-block text-xs px-3 py-1 rounded-full ${
+                item.active
+                  ? "bg-green-100 text-green-700"
+                  : "bg-gray-100 text-gray-600"
+              }`}>
+                {item.active ? "Active" : "Inactive"}
+              </span>
+
+              <label className="flex items-center gap-2 text-sm text-gray-600 mt-2">
                 <input
                   type="checkbox"
                   checked={item.active}
                   onChange={() => toggleItem(item.id)}
                 />
-                Active
+                Change Status
               </label>
-
             </div>
 
-            <div className="actions">
-
-              <button onClick={() => setEditingItem(item)}>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setEditingItem(item)}
+                className="bg-yellow-500 text-white px-4 py-2 rounded-lg hover:bg-yellow-600"
+              >
                 Edit
               </button>
 
-              <button onClick={() => deleteItem(item.id)}>
+              <button
+                onClick={() => deleteItem(item.id)}
+                className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700"
+              >
                 Delete
               </button>
-
             </div>
-
           </div>
-
         ))
-
       )}
-
     </div>
   );
 }
 
-// ==========================================
-// 6. MAIN DASHBOARD COMPONENT
-// ==========================================
-
+// 5. DASHBOARD
 function Dashboard() {
-
   const [editingItem, setEditingItem] = useState(null);
+  const { items } = useContext(ItemContext);
 
   return (
-    <div className="container">
+    <div className="min-h-screen bg-slate-100 p-4 sm:p-8">
+      <div className="max-w-5xl mx-auto">
 
-      <h1>{CONFIG.title}</h1>
+        <div className="bg-blue-700 text-white p-6 rounded-xl mb-6 shadow-sm">
+          <h1 className="text-3xl font-bold">
+            {CONFIG.title}
+          </h1>
+          <p className="text-blue-100 mt-2">
+            Manage and organize your records easily.
+          </p>
+        </div>
 
-      <ItemForm
-        editingItem={editingItem}
-        setEditingItem={setEditingItem}
-      />
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+          <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-200">
+            <p className="text-gray-500 text-sm">Total Records</p>
+            <h2 className="text-3xl font-bold text-blue-700 mt-1">
+              {items.length}
+            </h2>
+          </div>
 
-      <ItemList setEditingItem={setEditingItem} />
+          <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-200">
+            <p className="text-gray-500 text-sm">Active Records</p>
+            <h2 className="text-3xl font-bold text-green-600 mt-1">
+              {items.filter(item => item.active).length}
+            </h2>
+          </div>
+        </div>
 
+        <ItemForm
+          editingItem={editingItem}
+          setEditingItem={setEditingItem}
+        />
+
+        <ItemList setEditingItem={setEditingItem} />
+
+        <p className="text-center text-gray-400 text-sm mt-6">
+          {CONFIG.title} | React Application
+        </p>
+
+      </div>
     </div>
   );
 }
 
-// ==========================================
-// 7. MAIN APP COMPONENT
-// ==========================================
-
+// 6. MAIN APP
 export default function App() {
-
   return (
     <ItemProvider>
       <Dashboard />
     </ItemProvider>
   );
-
 }
