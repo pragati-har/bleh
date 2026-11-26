@@ -44,6 +44,11 @@ Create a folder called backend, then create package.json inside it.
 Install the dependencies by opening a terminal inside backend:
 npm install
 
+5. Start your backend
+In the VS Code terminal:
+cd backend
+npm install
+npm start
 
 3. Backend .env
 Create a file named .env inside backend.
